@@ -18,15 +18,24 @@ const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 
 Note that the [`GPUAdapter`](https://gpuweb.github.io/gpuweb/#gpu-adapter) must be requested with the `xrCompatible` option set to `true`. This mirrors the WebGL context creation arg by the same name, and ensures that the returned adapter will be one that is compatible with the UAs selected XR Device.
 
-Once the `XRGPUBinding` instance has been created, it can be used to create the various `XRCompositorLayer`s, just like `XRWebGLBinding`. One of the primary differences is that when using WebGPU the format of the texture must be specified. The list of supported formats can be queried from the `XRGPUBinding.getSupportedColorFormats()` and `XRGPUBinding.getSupportedDepthStencilFormats()` methods, which return the supported formats in order of preference (so element `0` in the returned list is always the most highly preferred format.)
+Once the `XRGPUBinding` instance has been created, it can be used to create the various `XRCompositorLayer`s, just like `XRWebGLBinding`.
+
+```js
+const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
+const gpuDevice = await gpuAdapter.requestDevice();
+const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
+const projectionLayer = xrGpuBinding.createProjectionLayer();
+```
+
+This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for color attachments. The color format of the layer can be specified if desired, and if depth/stencil is required it can be requested as well by specifying an appropriate depth/stencil format. The list of supported formats is given by the `XRGPUBinding.supportedColorFormats` and `XRGPUBinding.supportedDepthStencilFormats` attributes, which list the supported formats in order of preference (so element `0` in the is always the most highly preferred format.)
 
 ```js
 const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
 const gpuDevice = await gpuAdapter.requestDevice();
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const projectionLayer = xrGpuBinding.createProjectionLayer({
-  colorFormat: xrGpuBinding.getSupportedColorFormats()[0],
-  depthStencilFormat: xrGpuBinding.getSupportedDepthStencilFormats()[0],
+  colorFormat: xrGpuBinding.supportedColorFormats[0],
+  depthStencilFormat: xrGpuBinding.supportedDepthStencilFormats[0],
 });
 ```
 
@@ -36,7 +45,6 @@ As with the base XR Layers module, `XRGPUBinding` is only required to support `X
 
 ```js
 const quadLayer = xrGpuBinding.createQuadLayer({
-  colorFormat: xrGpuBinding.getSupportedColorFormats()[0],
   space: xrReferenceSpace,
   viewPixelWidth: 1024,
   viewPixelHeight: 768,
@@ -56,8 +64,8 @@ WebGPU projection layers will provide the same `colorTexture` and `depthStencilT
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const layer = xrGpuBinding.createProjectionLayer({
-  colorFormat: xrGpuBinding.getSupportedColorFormats()[0],
-  depthStencilFormat: xrGpuBinding.getSupportedDepthStencilFormats()[0],
+  colorFormat: xrGpuBinding.supportedColorFormats[0],
+  depthStencilFormat: xrGpuBinding.supportedDepthStencilFormats[0],
 });
 
 xrSession.updateRenderState({ layers: [layer] });
@@ -106,7 +114,6 @@ For mono textures the `XRSubImage` can be queried using just the layer and `XRFr
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const quadLayer = xrGpuBinding.createQuadLayer({
-  colorFormat: xrGpuBinding.getSupportedColorFormats()[0],
   space: xrReferenceSpace,
   viewPixelWidth: 512,
   viewPixelHeight: 512,
@@ -155,7 +162,6 @@ For stereo textures the target `XREye` must be given to `getSubImage()` as well:
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const quadLayer = xrGpuBinding.createQuadLayer({
-  colorFormat: xrGpuBinding.getSupportedColorFormats()[0],
   space: xrReferenceSpace,
   viewPixelWidth: 512,
   viewPixelHeight: 512,
@@ -217,14 +223,14 @@ partial dictionary GPURequestAdapterOptions {
 };
 
 dictionary XRGPUProjectionLayerInit {
-  required GPUTextureFormat colorFormat;
+  GPUTextureFormat colorFormat = "bgra8unorm";
   GPUTextureFormat? depthStencilFormat;
   GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.OUTPUT_ATTACHMENT
   double scaleFactor = 1.0;
 };
 
 dictionary XRGPULayerInit {
-  required GPUTextureFormat colorFormat;
+  GPUTextureFormat colorFormat = "bgra8unorm";
   GPUTextureFormat? depthStencilFormat;
   GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.OUTPUT_ATTACHMENT
   required XRSpace space;
@@ -264,8 +270,8 @@ dictionary XRGPUCubeLayerInit : XRGPULayerInit {
 
   readonly attribute double nativeProjectionScaleFactor;
 
-  FrozenArray<GPUTextureFormat> supportedColorFormats();
-  FrozenArray<GPUTextureFormat> supportedDepthStencilFormats();
+  readonly attribute FrozenArray<GPUTextureFormat> supportedColorFormats;
+  readonly attribute FrozenArray<GPUTextureFormat> supportedDepthStencilFormats;
 
   XRProjectionLayer createProjectionLayer(optional XRGPUProjectionLayerInit init);
   XRQuadLayer createQuadLayer(optional XRGPUQuadLayerInit init);
