@@ -39,7 +39,7 @@ const projectionLayer = xrGpuBinding.createProjectionLayer({
 });
 ```
 
-This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for both color attachments and depth/stencil attachements. Note that if a `depthStencilFormat` is provided it is implied that the application will populate it will a reasonalbe representation of the scene's depth and that the UAs XR compositor may use that information when rendering. If you cannot guarantee that the the depth information output by your application is representative of the scene rendered into the color attachment your application should allocate it's own depth/stencil textures instead.
+This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for both color attachments and depth/stencil attachements. Note that if a `depthStencilFormat` is provided it is implied that the application will populate it will a reasonable representation of the scene's depth and that the UAs XR compositor may use that information when rendering. If you cannot guarantee that the the depth information output by your application is representative of the scene rendered into the color attachment your application should allocate it's own depth/stencil textures instead.
 
 As with the base XR Layers module, `XRGPUBinding` is only required to support `XRProjectionLayer`s unless the `layers` feature descriptor is supplied at session creation and supported by the UA/device. If the `layers` feature descriptor is requested and supported, however, all other `XRCompositionLayer` types must be supported. Layers are still set via `XRSession`'s `updateRenderState` method, as usual:
 
@@ -83,19 +83,22 @@ function onXRFrame(time, xrFrame) {
     const passEncoder = commandEncoder.beginRenderPass({
         colorAttachments: [{
           attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
-          loadValue: 'load',
+          loadOp: 'clear',
+          clearValue: [0,0,0,1],
         }],
         depthStencilAttachment: {
           attachment: subImage.depthStencilTexture.createView(subImage.viewDescriptor),
-          depthLoadValue: 'load',
+          depthLoadOp: 'clear',
+          depthClearValue: 1.0,
           depthStoreOp: 'store',
-          stencilLoadValue: 'load',
+          stencilLoadOp: 'clear',
+          stencilClearValue: 0,
           stencilStoreOp: 'store',
         }
       });
 
-    let viewport = subImage.viewport;
-    passEncoder.setViewport(viewport.x, viewport.y, viewport.width, viewport.height, 0.0, 1.0);
+    let vp = subImage.viewport;
+    passEncoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0, 1.0);
 
     // Render from the viewpoint of xrView
 
@@ -139,14 +142,15 @@ function onXRFrame(time, xrFrame) {
   const passEncoder = commandEncoder.beginRenderPass({
       colorAttachments: [{
         attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
-        loadValue: 'load',
+        loadOp: 'clear',
+        clearValue: [0,0,0,0],
       }]
       // Many times simple quad layers won't require a depth attachment, as they're often just
       // displaying a pre-rendered 2D image.
     });
 
-  let viewport = subImage.viewport;
-  passEncoder.setViewport(viewport.x, viewport.y, viewport.width, viewport.height, 0.0, 1.0);
+  let vp = subImage.viewport;
+  passEncoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0, 1.0);
 
   // Render the mono content.
 
@@ -188,14 +192,15 @@ function onXRFrame(time, xrFrame) {
     const passEncoder = commandEncoder.beginRenderPass({
         colorAttachments: [{
           attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
-          loadValue: 'load',
+          loadOp: 'clear',
+          clearValue: [0,0,0,0],
         }]
         // Many times simple quad layers won't require a depth attachment, as they're often just
         // displaying a pre-rendered 2D image.
       });
 
-    let viewport = subImage.viewport;
-    passEncoder.setViewport(viewport.x, viewport.y, viewport.width, viewport.height, 0.0, 1.0);
+    let vp = subImage.viewport;
+    passEncoder.setViewport(vp.x, vp.y, vp.width, vp.height, 0.0, 1.0);
 
     // Render content for the given eye.
 
