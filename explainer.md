@@ -27,15 +27,15 @@ const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const projectionLayer = xrGpuBinding.createProjectionLayer();
 ```
 
-This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for color attachments. The color format of the layer can be specified if desired, and if depth/stencil is required it can be requested as well by specifying an appropriate depth/stencil format. The list of supported formats is given by the `XRGPUBinding.supportedColorFormats` and `XRGPUBinding.supportedDepthStencilFormats` attributes, which list the supported formats in order of preference (so element `0` in the is always the most highly preferred format.)
+This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for color attachments. The color format of the layer must be specified, and if depth/stencil is required it can be requested as well by specifying an appropriate depth/stencil format. The preferred color format for the `XRSession` is given by `XRGPUBinding.getPreferredColorFormat()` method.
 
 ```js
 const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
 const gpuDevice = await gpuAdapter.requestDevice();
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const projectionLayer = xrGpuBinding.createProjectionLayer({
-  colorFormat: xrGpuBinding.supportedColorFormats[0],
-  depthStencilFormat: xrGpuBinding.supportedDepthStencilFormats[0],
+  colorFormat: xrGpuBinding.getPreferredColorFormat(),
+  depthStencilFormat: 'depth24plus',
 });
 ```
 
@@ -221,24 +221,23 @@ partial dictionary GPURequestAdapterOptions {
 [Exposed=Window] interface XRGPUSubImage : XRSubImage {
   [SameObject] readonly attribute GPUTexture colorTexture;
   [SameObject] readonly attribute GPUTexture? depthStencilTexture;
+  [SameObject] readonly attribute GPUTexture? motionVectorTexture;
   readonly attribute GPUTextureViewDescriptor viewDescriptor;
-  readonly attribute unsigned long textureWidth;
-  readonly attribute unsigned long textureHeight;
-  readonly attribute unsigned long textureArrayLayers;
 };
 
 dictionary XRGPUProjectionLayerInit {
-  GPUTextureFormat colorFormat = "bgra8unorm";
+  required GPUTextureFormat colorFormat;
   GPUTextureFormat? depthStencilFormat;
-  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.OUTPUT_ATTACHMENT
+  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.RENDER_ATTACHMENT 
   double scaleFactor = 1.0;
 };
 
 dictionary XRGPULayerInit {
-  GPUTextureFormat colorFormat = "bgra8unorm";
+  required GPUTextureFormat colorFormat;
   GPUTextureFormat? depthStencilFormat;
-  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.OUTPUT_ATTACHMENT
+  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.RENDER_ATTACHMENT
   required XRSpace space;
+  unsigned long mipLevels = 1;
   required unsigned long viewPixelWidth;
   required unsigned long viewPixelHeight;
   XRLayerLayout layout = "mono";
@@ -275,9 +274,6 @@ dictionary XRGPUCubeLayerInit : XRGPULayerInit {
 
   readonly attribute double nativeProjectionScaleFactor;
 
-  readonly attribute FrozenArray<GPUTextureFormat> supportedColorFormats;
-  readonly attribute FrozenArray<GPUTextureFormat> supportedDepthStencilFormats;
-
   XRProjectionLayer createProjectionLayer(optional XRGPUProjectionLayerInit init);
   XRQuadLayer createQuadLayer(optional XRGPUQuadLayerInit init);
   XRCylinderLayer createCylinderLayer(optional XRGPUCylinderLayerInit init);
@@ -286,5 +282,7 @@ dictionary XRGPUCubeLayerInit : XRGPULayerInit {
 
   XRGPUSubImage getSubImage(XRCompositionLayer layer, XRFrame frame, optional XREye eye = "none");
   XRGPUSubImage getViewSubImage(XRProjectionLayer layer, XRView view);
+  
+  GPUTextureFormat getPreferredColorFormat();
 };
 ```
