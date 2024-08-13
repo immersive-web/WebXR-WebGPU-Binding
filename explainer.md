@@ -64,8 +64,8 @@ WebGPU projection layers will provide the same `colorTexture` and `depthStencilT
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const layer = xrGpuBinding.createProjectionLayer({
-  colorFormat: xrGpuBinding.supportedColorFormats[0],
-  depthStencilFormat: xrGpuBinding.supportedDepthStencilFormats[0],
+  colorFormat: xrGpuBinding.getPreferredColorFormat(),
+  depthStencilFormat: 'depth24plus',
 });
 
 xrSession.updateRenderState({ layers: [layer] });
@@ -82,18 +82,15 @@ function onXRFrame(time, xrFrame) {
     // Render to the subImage's color and depth textures
     const passEncoder = commandEncoder.beginRenderPass({
         colorAttachments: [{
-          attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
+          view: subImage.colorTexture.createView(subImage.getViewDescriptor()),
           loadOp: 'clear',
           clearValue: [0,0,0,1],
         }],
         depthStencilAttachment: {
-          attachment: subImage.depthStencilTexture.createView(subImage.viewDescriptor),
+          view: subImage.depthStencilTexture.createView(subImage.getViewDescriptor()),
           depthLoadOp: 'clear',
           depthClearValue: 1.0,
           depthStoreOp: 'store',
-          stencilLoadOp: 'clear',
-          stencilClearValue: 0,
-          stencilStoreOp: 'store',
         }
       });
 
@@ -117,6 +114,7 @@ For mono textures the `XRSubImage` can be queried using just the layer and `XRFr
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const quadLayer = xrGpuBinding.createQuadLayer({
+  colorFormat: xrGpuBinding.getPreferredColorFormat(),
   space: xrReferenceSpace,
   viewPixelWidth: 512,
   viewPixelHeight: 512,
@@ -141,7 +139,7 @@ function onXRFrame(time, xrFrame) {
   // Render to the subImage's color texture.
   const passEncoder = commandEncoder.beginRenderPass({
       colorAttachments: [{
-        attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
+        view: subImage.colorTexture.createView(subImage.getViewDescriptor()),
         loadOp: 'clear',
         clearValue: [0,0,0,0],
       }]
@@ -166,6 +164,7 @@ For stereo textures the target `XREye` must be given to `getSubImage()` as well:
 // Render Loop for a projection layer with a WebGPU texture source.
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const quadLayer = xrGpuBinding.createQuadLayer({
+  colorFormat: xrGpuBinding.getPreferredColorFormat(),
   space: xrReferenceSpace,
   viewPixelWidth: 512,
   viewPixelHeight: 512,
@@ -191,7 +190,7 @@ function onXRFrame(time, xrFrame) {
     // Render to the subImage's color texture.
     const passEncoder = commandEncoder.beginRenderPass({
         colorAttachments: [{
-          attachment: subImage.colorTexture.createView(subImage.viewDescriptor),
+          view: subImage.colorTexture.createView(subImage.getViewDescriptor()),
           loadOp: 'clear',
           clearValue: [0,0,0,0],
         }]
@@ -222,7 +221,7 @@ partial dictionary GPURequestAdapterOptions {
   [SameObject] readonly attribute GPUTexture colorTexture;
   [SameObject] readonly attribute GPUTexture? depthStencilTexture;
   [SameObject] readonly attribute GPUTexture? motionVectorTexture;
-  readonly attribute GPUTextureViewDescriptor viewDescriptor;
+  GPUTextureViewDescriptor getViewDescriptor();
 };
 
 dictionary XRGPUProjectionLayerInit {
