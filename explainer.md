@@ -11,7 +11,7 @@ This module aims to allow the existing [WebXR Layers module](https://immersive-w
 As with the existing WebGL path described in the Layers module, all WebGPU resources required by WebXR would be supplied by an `XRGPUBinding` instance, created with an `XRSession` and [`GPUDevice`](https://gpuweb.github.io/gpuweb/#gpu-device) like so:
 
 ```js
-const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
+const gpuAdapter = await navigator.gpu.requestAdapter({xrCompatible: true});
 const gpuDevice = await gpuAdapter.requestDevice();
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 ```
@@ -21,7 +21,7 @@ Note that the [`GPUAdapter`](https://gpuweb.github.io/gpuweb/#gpu-adapter) must 
 Once the `XRGPUBinding` instance has been created, it can be used to create the various `XRCompositorLayer`s, just like `XRWebGLBinding`.
 
 ```js
-const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
+const gpuAdapter = await navigator.gpu.requestAdapter({xrCompatible: true});
 const gpuDevice = await gpuAdapter.requestDevice();
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const projectionLayer = xrGpuBinding.createProjectionLayer();
@@ -30,7 +30,7 @@ const projectionLayer = xrGpuBinding.createProjectionLayer();
 This allocates a layer that supplies a [`GPUTexture`](https://gpuweb.github.io/gpuweb/#gputexture) to use for color attachments. The color format of the layer must be specified, and if depth/stencil is required it can be requested as well by specifying an appropriate depth/stencil format. The preferred color format for the `XRSession` is given by `XRGPUBinding.getPreferredColorFormat()` method.
 
 ```js
-const gpuAdapter = await navigator.gpu.getAdapter({xrCompatible: true});
+const gpuAdapter = await navigator.gpu.requestAdapter({xrCompatible: true});
 const gpuDevice = await gpuAdapter.requestDevice();
 const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 const projectionLayer = xrGpuBinding.createProjectionLayer({
@@ -74,7 +74,7 @@ xrSession.requestAnimationFrame(onXRFrame);
 function onXRFrame(time, xrFrame) {
   xrSession.requestAnimationFrame(onXRFrame);
 
-  const commandEncoder = device.createCommandEncoder({});
+  const commandEncoder = device.createCommandEncoder();
 
   for (const view in xrViewerPose.views) {
     const subImage = xrGpuBinding.getViewSubImage(layer, view);
@@ -99,10 +99,10 @@ function onXRFrame(time, xrFrame) {
 
     // Render from the viewpoint of xrView
 
-    passEncoder.endPass();
+    passEncoder.end();
   }
 
-  device.defaultQueue.submit([commandEncoder.finish()]);
+  device.queue.submit([commandEncoder.finish()]);
 }
 ```
 
@@ -132,7 +132,7 @@ xrSession.requestAnimationFrame(onXRFrame);
 function onXRFrame(time, xrFrame) {
   xrSession.requestAnimationFrame(onXRFrame);
 
-  const commandEncoder = device.createCommandEncoder({});
+  const commandEncoder = device.createCommandEncoder();
 
   const subImage = xrGpuBinding.getSubImage(quadLayer, xrFrame);
 
@@ -152,9 +152,9 @@ function onXRFrame(time, xrFrame) {
 
   // Render the mono content.
 
-  passEncoder.endPass();
+  passEncoder.end();
 
-  device.defaultQueue.submit([commandEncoder.finish()]);
+  device.queue.submit([commandEncoder.finish()]);
 }
 ```
 
@@ -182,7 +182,7 @@ xrSession.requestAnimationFrame(onXRFrame);
 function onXRFrame(time, xrFrame) {
   xrSession.requestAnimationFrame(onXRFrame);
 
-  const commandEncoder = device.createCommandEncoder({});
+  const commandEncoder = device.createCommandEncoder();
 
   for (const eye of ['left', 'right']) {
     const subImage = xrGpuBinding.getSubImage(quadLayer, xrFrame, eye);
@@ -203,10 +203,10 @@ function onXRFrame(time, xrFrame) {
 
     // Render content for the given eye.
 
-    passEncoder.endPass();
+    passEncoder.end();
   }
 
-  device.defaultQueue.submit([commandEncoder.finish()]);
+  device.queue.submit([commandEncoder.finish()]);
 }
 ```
 
