@@ -6,9 +6,24 @@ The [WebGPU API](https://gpuweb.github.io/gpuweb/) is an upcoming API for utiliz
 
 This module aims to allow the existing [WebXR Layers module](https://immersive-web.github.io/layers/) to interface with WebGPU by providing WebGPU swap chains for each layer type.
 
+## WebGPU-compatible XRSessions
+
+Mixing content rendered by different APIs in a single session is not something that most native VR/AR APIs support. As such, the decision of which graphics API to use needs to be specified at `XRSession` creation time. WebGL is the default, but a WebGPU-compatible session can be created by requesting the `'webgpu'` feature descriptor as either a optional or required feature.
+
+```js
+const xrSession = await navigator.xr.requestSession('immersive-vr', {requiredFeatures: ['webgpu']});
+```
+
+A WebGPU-compatible `XRSession` has the following differences from a WebGL-compatible session:
+
+ - `XRWebGLBinding` and `XRWebGLLayer` instances cannot be created.
+ - `XRGPUBinding` instances can be created (see below).
+ - `baseLayer` cannot be be set in `updateRenderState()`. `layers` must be used instead.
+ - The `projectionMatrix` attribute of `XRView`s will return a matrix appropriate for a clip-space depth range of [0, 1] instead of [-1, 1].
+
 ## WebGPU binding
 
-As with the existing WebGL path described in the Layers module, all WebGPU resources required by WebXR would be supplied by an `XRGPUBinding` instance, created with an `XRSession` and [`GPUDevice`](https://gpuweb.github.io/gpuweb/#gpu-device) like so:
+As with the existing WebGL path described in the Layers module, all WebGPU resources required by WebXR would be supplied by an `XRGPUBinding` instance, created with a WebGPU-compatible `XRSession` and [`GPUDevice`](https://gpuweb.github.io/gpuweb/#gpu-device) like so:
 
 ```js
 const gpuAdapter = await navigator.gpu.requestAdapter({xrCompatible: true});
@@ -17,6 +32,8 @@ const xrGpuBinding = new XRGPUBinding(xrSession, gpuDevice);
 ```
 
 Note that the [`GPUAdapter`](https://gpuweb.github.io/gpuweb/#gpu-adapter) must be requested with the `xrCompatible` option set to `true`. This mirrors the WebGL context creation arg by the same name, and ensures that the returned adapter will be one that is compatible with the UAs selected XR Device.
+
+If the `XRGPUBinding` constructor is called with a WebGL-compatible `XRSession` or a `GPUDevice` created by a non-`xrCompatible` adapter an InvalidState exception is thrown.
 
 Once the `XRGPUBinding` instance has been created, it can be used to create the various `XRCompositorLayer`s, just like `XRWebGLBinding`.
 
@@ -213,6 +230,8 @@ function onXRFrame(time, xrFrame) {
 ## Proposed IDL
 
 ```webidl
+// New feature descriptor: "webgpu"
+
 partial dictionary GPURequestAdapterOptions {
     boolean xrCompatible = false;
 };
