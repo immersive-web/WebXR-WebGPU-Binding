@@ -2,7 +2,7 @@
 Shortname: webxr-webgpu-binding
 Title: WebXR/WebGPU Binding Module - Level 1
 Group: immersivewebwg
-Status: ED
+Status: w3c/ED
 TR: https://www.w3.org/TR/webxr-webgpu-binding-1/
 ED: https://immersive-web.github.io/webxr-webgpu-binding/
 Previous Version:
@@ -10,15 +10,27 @@ Repository: immersive-web/webxr-webgpu-binding
 Level: 1
 Mailing List Archives: https://lists.w3.org/Archives/Public/public-immersive-web/
 
-Editor: Brandon Jones 87824, Google http://google.com/, bajones@google.com
+Editor: Brandon Jones, Google https://www.google.com, bajones@google.com, w3cid 87824
 
 Abstract: This specification describes support for rendering content for a WebXR session with WebGPU.
+
+Markup Shorthands: markdown yes
+Markup Shorthands: dfn yes
+Markup Shorthands: idl yes
+Markup Shorthands: css no
+Assume Explicit For: yes
 
 Warning: custom
 Custom Warning Title: Unstable API
 Custom Warning Text:
   <b>The API represented in this document is under development and may change at any time.</b>
   <p>For additional context on the use of this API please reference the <a href="https://github.com/immersive-web/webxr-webgpu-binding/blob/master/explainer.md">WebXR/WebGPU Binding Module Explainer</a>.</p>
+</pre>
+
+<pre class="link-defaults">
+spec: webxr;
+    type: dfn;
+        text: feature descriptor
 </pre>
 
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -79,13 +91,176 @@ Custom Warning Text:
   }
 </style>
 
-Introduction {#intro}
-============
+# Introduction # {#intro}
 
 <section class="non-normative">
 
-This spec adds support for creation of {{XRCompositionLayers}}, as described in the <a href="https://immersive-web.github.io/layers/">WebXR Layers API</a>, which are rendered using the <a href="https://gpuweb.github.io/gpuweb/">WebGPU API</a>.
+This spec adds support for creation of {{XRCompositionLayer}}s, as described in the <a href="https://immersive-web.github.io/layers/">WebXR Layers API</a>, which are rendered using the <a href="https://gpuweb.github.io/gpuweb/">WebGPU API</a>.
 
 WebGPU is an API for utilizing the graphics and compute capabilities of a device's GPU more efficiently than WebGL allows, with an API that better matches both GPU hardware architecture and the modern native APIs that interface with them, such as Vulkan, Direct3D 12, and Metal.
 
 </section>
+
+## Application flow ## {#applicationflow}
+
+<section class="non-normative">
+
+If an author wants to use WebGPU to render content for a WebXR Session, they must perform the following steps:
+
+  In no particular order
+  1. Create a {{GPUDevice}} from an {{GPUAdapter}} which was requested with the {{GPURequestAdapterOptions/xrCompatible}} option set to `true`.
+  1. Create an {{XRSession}} with the [=feature descriptor/webgpu=] feature.
+
+  Then
+  1. Create an {{XRGPUBinding}} with both the XR-compatible {{GPUDevice}} and [=WebGPU-compatible session=].
+  1. Create one or more {{XRCompositionLayer}}s with the {{XRGPUBinding}}
+  1. Add the layers to {{XRRenderStateInit}} and call {{XRSession/updateRenderState()}}.
+  1. During {{XRSession/requestAnimationFrame()}} for each WebGPU layer:
+    1. For each {{XRGPUSubImage}} exposed by the layer:
+        1. Draw the contents of the subimage using the {{GPUDevice}} the {{XRGPUBinding}} was created with.
+
+</section>
+
+# Initialization # {#initialization}
+
+## "webgpu" feature ## {#webgpu-feature}
+
+If an application wants to use WebGPU for rendering during a session, the session MUST be requested with an appropriate [=feature descriptor=]. The string "<dfn for="feature descriptor">webgpu</dfn>" is introduced by this module as a new valid [=feature descriptor=] for the WebXR/WebGPU Bindings feature. {{XRSession}}s created with the [=feature descriptor/webgpu=] feature are considered [=WebGPU-compatible sessions=].
+
+A <dfn>WebGPU-compatible session</dfn> MUST have the following behavioral from a WebGL-compatible session:
+
+ - {{XRSessionMode/"inline"}} sessions are not supported.
+ - {{XRWebGLBinding}} and {{XRWebGLLayer}} instances cannot be created with the session.
+ - {{XRGPUBinding}} instances can be created for the session.
+ - {{XRRenderStateInit/baseLayer}} cannot be be set in {{XRSession/updateRenderState()}}. {{XRRenderStateInit/layers}} must be used instead.
+ - The {{XRView/projectionMatrix}} attribute of any {{XRView}} associated with the session will return a matrix appropriate for a clip-space depth range of [0, 1] instead of [-1, 1].
+
+<div class="example">
+The following code creates a [=WebGPU-compatible session=].
+
+  <pre highlight="js">
+    navigator.xr.requestSession('immersive-vr', {
+      requiredFeatures: ['webgpu']
+    }
+  </pre>
+</div>
+
+Note: The [=feature descriptor/webgpu=] feature may be passed to either {{XRSessionInit/requiredFeatures}} or {{XRSessionInit/optionalFeatures}}, but if passed to {{XRSessionInit/optionalFeatures}} the author must check {{XRSession/enabledFeatures}} after the session is created and use either WebGPU or WebGL to render the session's content depending on if [=feature descriptor/webgpu=] is present.
+
+## GPUAdapter integration ## {#gpuadapter-integration}
+
+<script type=idl>
+partial dictionary GPURequestAdapterOptions {
+    boolean xrCompatible = false;
+};
+</script>
+
+Note: There is no WebGPU equivalent to the {{WebGLRenderingContextBase/makeXRCompatible()}} method to make a {{GPUDevice}} XR-compatible after creation.
+
+## XRGPUBinding ## {#xrgpubinding-interface}
+
+<script type=idl>
+[Exposed=(Window), SecureContext]
+interface XRGPUBinding {
+  constructor(XRSession session, GPUDevice device);
+
+  readonly attribute double nativeProjectionScaleFactor;
+
+  XRProjectionLayer createProjectionLayer(optional XRGPUProjectionLayerInit init);
+  XRQuadLayer createQuadLayer(optional XRGPUQuadLayerInit init);
+  XRCylinderLayer createCylinderLayer(optional XRGPUCylinderLayerInit init);
+  XREquirectLayer createEquirectLayer(optional XRGPUEquirectLayerInit init);
+  XRCubeLayer createCubeLayer(optional XRGPUCubeLayerInit init);
+
+  XRGPUSubImage getSubImage(XRCompositionLayer layer, XRFrame frame, optional XREye eye = "none");
+  XRGPUSubImage getViewSubImage(XRProjectionLayer layer, XRView view);
+  
+  GPUTextureFormat getPreferredColorFormat();
+};
+</script>
+
+# Rendering # {#rendering}
+
+## XRGPUSubImage ## {#xrgpusubimage-interface}
+
+<script type=idl>
+[Exposed=(Window), SecureContext]
+interface XRGPUSubImage : XRSubImage {
+  [SameObject] readonly attribute GPUTexture colorTexture;
+  [SameObject] readonly attribute GPUTexture? depthStencilTexture;
+  [SameObject] readonly attribute GPUTexture? motionVectorTexture;
+  GPUTextureViewDescriptor getViewDescriptor();
+};
+</script>
+
+# Layer Creation # {#layer-creation}
+
+## XRGPUProjectionLayerInit ## {#xrgpuprojectionlayerinit}
+
+<script type=idl>
+[Exposed=(Window), SecureContext]
+dictionary XRGPUProjectionLayerInit {
+  required GPUTextureFormat colorFormat;
+  GPUTextureFormat? depthStencilFormat;
+  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.RENDER_ATTACHMENT 
+  double scaleFactor = 1.0;
+};
+</script>
+
+## XRGPULayerInit ## {#xrgpulayerinit}
+
+<script type=idl>
+[Exposed=(Window), SecureContext]
+dictionary XRGPULayerInit {
+  required GPUTextureFormat colorFormat;
+  GPUTextureFormat? depthStencilFormat;
+  GPUTextureUsageFlags textureUsage = 0x10; // GPUTextureUsage.RENDER_ATTACHMENT
+  required XRSpace space;
+  unsigned long mipLevels = 1;
+  required unsigned long viewPixelWidth;
+  required unsigned long viewPixelHeight;
+  XRLayerLayout layout = "mono";
+  boolean isStatic = false;
+};
+</script>
+
+## XRGPUQuadLayerInit ## {#xrgpuquadlayerinit}
+
+<script type=idl>
+dictionary XRGPUQuadLayerInit : XRGPULayerInit {
+  XRRigidTransform? transform;
+  float width = 1.0;
+  float height = 1.0;
+};
+</script>
+
+## XRGPUCylinderLayerInit ## {#xrgpucylinderlayerinit}
+
+<script type=idl>
+dictionary XRGPUCylinderLayerInit : XRGPULayerInit {
+  XRRigidTransform? transform;
+  float radius = 2.0;
+  float centralAngle = 0.78539;
+  float aspectRatio = 2.0;
+};
+</script>
+
+## XRGPUEquirectLayerInit ## {#xrgpuequirectlayerinit}
+
+<script type=idl>
+dictionary XRGPUEquirectLayerInit : XRGPULayerInit {
+  XRRigidTransform? transform;
+  float radius = 0;
+  float centralHorizontalAngle = 6.28318;
+  float upperVerticalAngle = 1.570795;
+  float lowerVerticalAngle = -1.570795;
+};
+</script>
+
+## XRGPUCubeLayerInit ## {#xrgpucubelayerinit}
+
+<script type=idl>
+dictionary XRGPUCubeLayerInit : XRGPULayerInit {
+  DOMPointReadOnly? orientation;
+};
+</script>
