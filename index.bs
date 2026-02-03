@@ -2,13 +2,13 @@
 Shortname: webxr-webgpu-binding
 Title: WebXR/WebGPU Binding Module - Level 1
 Group: immersivewebwg
-Status: w3c/ED
+Status: ED
 TR: https://www.w3.org/TR/webxr-webgpu-binding-1/
 ED: https://immersive-web.github.io/webxr-webgpu-binding/
 Previous Version:
 Repository: immersive-web/webxr-webgpu-binding
 Level: 1
-Mailing List Archives: https://lists.w3.org/Archives/Public/public-immersive-web/
+Mailing List Archives: https://lists.w3.org/Archives/Public/public-immersive-web-wg/
 
 Editor: Brandon Jones, Google https://www.google.com, bajones@google.com, w3cid 87824
 
