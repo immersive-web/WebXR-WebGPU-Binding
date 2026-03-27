@@ -38,6 +38,8 @@ spec: webxr; urlPrefix: https://immersive-web.github.io/webxr/
         text: inline session; url: inline-session
         text: immersive session; url: immersive-session
         text: XR device; url: xr-device
+        text: XRView's session; url: xrview-session
+        text: XRFrame's session; url: dom-xrframe-session
 
 spec: webgpu; urlPrefix: https://gpuweb.github.io/gpuweb/
     type: dfn
@@ -229,7 +231,6 @@ Each {{XRGPUBinding}} has an associated <dfn for="XRGPUBinding">session</dfn> wh
 The <dfn constructor for="XRGPUBinding">XRGPUBinding(|session|, |device|)</dfn> constructor MUST perform the following steps when invoked:
 
  1. If |session|'s [=ended=] value is `true`, throw an {{InvalidStateError}} {{DOMException}}.
- 1. If |session| is an [=inline session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. If |session| is NOT a [=WebGPU-compatible session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. If |device| has been [=destroyed=], throw an {{InvalidStateError}} {{DOMException}}.
  1. If |device| was NOT created from an [=XR-compatible adapter=], throw an {{InvalidStateError}} {{DOMException}}.
@@ -266,7 +267,7 @@ The <dfn method for="XRGPUBinding">getPreferredColorFormat()</dfn> method return
 
 When invoked, the user agent MUST return the preferred {{GPUTextureFormat}} for the session's [=XR device=].
 
-NOTE: The preferred color format is typically `"rgba8unorm"` or `"bgra8unorm"` depending on the platform. Authors SHOULD use this method to determine the format for their projection layers.
+NOTE: The preferred color format is typically `"rgba8unorm"` or `"bgra8unorm"` depending on the platform. The preferred format for WebXR may differ from the format reported by `navigator.gpu.getPreferredCanvasFormat()`. Authors SHOULD use this method rather than `getPreferredCanvasFormat()` to determine the format for their XR projection layers.
 
 ### createProjectionLayer ### {#xrgpubinding-createprojectionlayer}
 
@@ -284,12 +285,14 @@ When invoked, the user agent MUST run the following steps:
  1. Let |textureSize| be |recommendedSize| scaled by |scaleFactor|.
  1. Let |maxDimension| be the [=XRGPUBinding/device=]'s `maxTextureDimension2D` limit.
  1. If either dimension of |textureSize| exceeds |maxDimension|, scale |textureSize| proportionally so the largest dimension equals |maxDimension|.
- 1. Create and return a new {{XRProjectionLayer}} with color textures of size |textureSize| and format |colorFormat|. If {{XRGPUProjectionLayerInit/depthStencilFormat}} is present, also allocate depth/stencil textures of the same size.
+ 1. Create a new {{XRProjectionLayer}} with color textures of size |textureSize| and format |colorFormat|.
+ 1. If |init|'s {{XRGPUProjectionLayerInit/depthStencilFormat}} is present, let |depthStencilFormat| be |init|'s {{XRGPUProjectionLayerInit/depthStencilFormat}} and allocate depth/stencil textures of size |textureSize| and format |depthStencilFormat|.
+ 1. Return the {{XRProjectionLayer}}.
 
 NOTE: The textures allocated for projection layers are typically texture arrays, with one layer per view (e.g., 2 layers for stereoscopic VR). The number of layers is determined by the session's view count.
 
 <div class="example">
-Creating a projection layer with color and depth:
+Creating a projection layer with color and depth and making it the active layer for the session:
 
   <pre highlight="js">
     const layer = binding.createProjectionLayer({
@@ -332,13 +335,13 @@ When invoked, the user agent MUST run the following steps:
 
  1. If the `"layers"` [=feature descriptor=] is not enabled for the session, throw a {{NotSupportedError}} {{DOMException}}.
  1. If |layer| was not created by this {{XRGPUBinding}}, throw an {{InvalidStateError}} {{DOMException}}.
- 1. If |frame|'s session is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
+ 1. If |frame|'s [=XRFrame's session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. If |frame| is not an active [=XR animation frame=], throw an {{InvalidStateError}} {{DOMException}}.
  1. Let |subImage| be a new {{XRGPUSubImage}}.
- 1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's current color {{GPUTexture}}.
- 1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's current depth/stencil {{GPUTexture}}, or `null` if not allocated.
+ 1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's [=current color texture=].
+ 1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's [=current depth/stencil texture=], or `null` if no depth/stencil format was specified during layer creation.
  1. Set |subImage|'s viewport based on the |eye| parameter and the layer's layout.
- 1. Set |subImage|'s {{XRGPUSubImage/imageIndex}} based on the |eye| parameter.
+ 1. Set |subImage|'s array layer index based on the |eye| parameter.
  1. Return |subImage|.
 
 </div>
@@ -350,16 +353,12 @@ The <dfn method for="XRGPUBinding">getViewSubImage(|layer|, |view|)</dfn> method
 When invoked, the user agent MUST run the following steps:
 
  1. If |layer| was not created by this {{XRGPUBinding}}, throw an {{InvalidStateError}} {{DOMException}}.
- 1. If |view|'s session is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
+ 1. If |view|'s [=XRView's session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. Let |subImage| be a new {{XRGPUSubImage}}.
- 1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's current color {{GPUTexture}}.
- 1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's current depth/stencil {{GPUTexture}}, or `null` if not allocated.
- 1. If the layer uses a texture array layout:
-    1. Set |subImage|'s {{XRGPUSubImage/imageIndex}} to the view's index.
-    1. Set the viewport to the full texture dimensions, adjusted by the current viewport scale.
- 1. Otherwise, if the layer uses a side-by-side layout:
-    1. Set |subImage|'s {{XRGPUSubImage/imageIndex}} to 0.
-    1. Compute the viewport by dividing the texture width by the number of views, offset by the view's index.
+ 1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's [=current color texture=].
+ 1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's [=current depth/stencil texture=], or `null` if no depth/stencil format was specified during layer creation.
+ 1. Set |subImage|'s array layer index to the view's index.
+ 1. Set the viewport to the full texture dimensions, adjusted by the current viewport scale.
  1. Return |subImage|.
 
 <div class="example">
@@ -412,12 +411,13 @@ Rendering a projection layer during an animation frame:
 
 An {{XRGPUSubImage}} represents a view into a WebGPU-backed composition layer's textures. It provides the {{GPUTexture}}s to render into and a {{GPUTextureViewDescriptor}} that describes which portion of the texture corresponds to the requested view.
 
+Each {{XRCompositionLayer}} created with an {{XRGPUBinding}} has an associated <dfn>current color texture</dfn> and an optional <dfn>current depth/stencil texture</dfn>. These are {{GPUTexture}} objects allocated and managed by the user agent's swap chain for the layer. At the beginning of each [=XR animation frame=], the user agent provides new textures for rendering. The textures from the previous frame are submitted to the compositor and are no longer available for rendering.
+
 <script type=idl>
 [Exposed=(Window), SecureContext]
 interface XRGPUSubImage : XRSubImage {
   [SameObject] readonly attribute GPUTexture colorTexture;
   [SameObject] readonly attribute GPUTexture? depthStencilTexture;
-  readonly attribute unsigned long imageIndex;
 
   GPUTextureViewDescriptor getViewDescriptor();
 };
@@ -425,14 +425,14 @@ interface XRGPUSubImage : XRSubImage {
 
 ### Attributes ### {#xrgpusubimage-attributes}
 
-The <dfn attribute for="XRGPUSubImage">colorTexture</dfn> attribute returns the {{GPUTexture}} to be used as the color attachment when rendering this sub image. This texture is allocated by the user agent and its lifetime is managed by the layer's swap chain. The same {{GPUTexture}} object is returned for all sub images of the same layer within a single frame — use the {{XRGPUSubImage/imageIndex}} or the result of {{XRGPUSubImage/getViewDescriptor()}} to determine which array layer or region of the texture to render to.
+The <dfn attribute for="XRGPUSubImage">colorTexture</dfn> attribute returns the {{GPUTexture}} to be used as the color attachment when rendering this sub image. This texture is allocated by the user agent and its lifetime is managed by the layer's swap chain. The same {{GPUTexture}} object is returned for all sub images of the same layer within a single frame — use the result of {{XRGPUSubImage/getViewDescriptor()}} to determine which array layer of the texture to render to.
 
 The returned texture has the following properties:
 
  - **dimension**: `"2d"`
  - **format**: The {{XRGPUProjectionLayerInit/colorFormat}} specified during layer creation.
  - **size**: The width and height are determined by the [=recommended WebGPU texture resolution=], scaled by the {{XRGPUProjectionLayerInit/scaleFactor}}. The `depthOrArrayLayers` is equal to the number of views in the session (typically 2 for stereoscopic rendering).
- - **usage**: `GPUTextureUsage.RENDER_ATTACHMENT` is always included. Additional usage flags from {{XRGPUProjectionLayerInit/textureUsage}} are also set.
+ - **usage**: The {{XRGPUProjectionLayerInit/textureUsage}} flags specified during layer creation. The default value includes `GPUTextureUsage.RENDER_ATTACHMENT`; if overriding, developers must explicitly include `RENDER_ATTACHMENT` if it is needed.
  - **mipLevelCount**: 1
 
 The <dfn attribute for="XRGPUSubImage">depthStencilTexture</dfn> attribute returns the {{GPUTexture}} to be used as the depth/stencil attachment when rendering this sub image, or `null` if no depth/stencil format was specified when creating the layer. When provided, the user agent MAY use the depth information to improve composition quality (for example, for reprojection).
@@ -442,12 +442,10 @@ When present, the returned texture has the following properties:
  - **dimension**: `"2d"`
  - **format**: The {{XRGPUProjectionLayerInit/depthStencilFormat}} specified during layer creation.
  - **size**: Same width, height, and `depthOrArrayLayers` as the {{XRGPUSubImage/colorTexture}}.
- - **usage**: `GPUTextureUsage.RENDER_ATTACHMENT` is always included. Additional usage flags from {{XRGPUProjectionLayerInit/textureUsage}} are also set.
+ - **usage**: The {{XRGPUProjectionLayerInit/textureUsage}} flags specified during layer creation. The default value includes `GPUTextureUsage.RENDER_ATTACHMENT`; if overriding, developers must explicitly include `RENDER_ATTACHMENT` if it is needed.
  - **mipLevelCount**: 1
 
 NOTE: If a {{XRGPUProjectionLayerInit/depthStencilFormat}} was provided during layer creation, it is implied that the user agent will populate it with an accurate representation of the scene's depth. If the depth information is not representative of the rendered scene, the user agent SHOULD allocate its own depth/stencil textures rather than use the layer-provided one.
-
-The <dfn attribute for="XRGPUSubImage">imageIndex</dfn> attribute returns the array layer index within the texture that corresponds to this sub image's view. For texture array layouts, different views render to different array layers of the same texture (e.g., index 0 for the left eye, index 1 for the right eye). For non-array layouts, this value is 0.
 
 ### getViewDescriptor ### {#xrgpusubimage-getviewdescriptor}
 
@@ -459,10 +457,10 @@ When invoked, the user agent MUST run the following steps:
  1. Set |descriptor|'s `dimension` to `"2d"`.
  1. Set |descriptor|'s `mipLevelCount` to 1.
  1. Set |descriptor|'s `arrayLayerCount` to 1.
- 1. Set |descriptor|'s `baseArrayLayer` to this {{XRGPUSubImage}}'s {{XRGPUSubImage/imageIndex}}.
+ 1. Set |descriptor|'s `baseArrayLayer` to the array layer index corresponding to this sub image's view (e.g., 0 for the left eye, 1 for the right eye).
  1. Return |descriptor|.
 
-NOTE: The returned descriptor selects a single 2D slice from the texture array. For texture array layouts, the {{XRGPUSubImage/imageIndex}} determines which layer is selected (e.g., 0 for the left eye view, 1 for the right eye view). The viewport still needs to be applied via `setViewport()` on the render pass encoder.
+NOTE: The returned descriptor selects a single 2D slice from the texture array via `baseArrayLayer` paired with an `arrayLayerCount` of `1`. The viewport still needs to be applied via `setViewport()` on the render pass encoder.
 
 <div class="example">
 Using the view descriptor to create render pass attachments:
@@ -495,7 +493,7 @@ The <dfn export lt="supported depth-stencil format">supported depth/stencil form
  - `"depth32float"`
  - `"depth32float-stencil8"`
 
-NOTE: User agents MAY support additional formats beyond those listed here, but the formats above MUST be supported if the corresponding WebGPU features are available on the {{GPUDevice}}.
+NOTE: The formats listed above are the only formats that MUST be accepted for layer creation. User agents MUST NOT accept formats outside of these lists.
 
 ## XRGPUProjectionLayerInit ## {#xrgpuprojectionlayerinit}
 
@@ -517,7 +515,6 @@ Creating a projection layer with the preferred color format:
     const layer = binding.createProjectionLayer({
       colorFormat: binding.getPreferredColorFormat(),
       depthStencilFormat: 'depth24plus-stencil8',
-      scaleFactor: 1.0,
     });
   </pre>
 </div>
@@ -526,7 +523,7 @@ The <dfn dict-member for="XRGPUProjectionLayerInit">colorFormat</dfn> member spe
 
 The <dfn dict-member for="XRGPUProjectionLayerInit">depthStencilFormat</dfn> member, when present, specifies the {{GPUTextureFormat}} for the layer's depth/stencil textures. This MUST be a [=supported depth-stencil format=]. When not present, no depth/stencil texture is allocated.
 
-The <dfn dict-member for="XRGPUProjectionLayerInit">textureUsage</dfn> member specifies additional {{GPUTextureUsageFlags}} to be set on the allocated textures. The `RENDER_ATTACHMENT` usage is always included by default.
+The <dfn dict-member for="XRGPUProjectionLayerInit">textureUsage</dfn> member specifies the {{GPUTextureUsageFlags}} to be set on the allocated textures. The default value is `GPUTextureUsage.RENDER_ATTACHMENT`. If overriding this value, developers MUST explicitly include `RENDER_ATTACHMENT` if they intend to use the textures as render attachments.
 
 The <dfn dict-member for="XRGPUProjectionLayerInit">scaleFactor</dfn> member specifies a scale factor to apply to the [=recommended WebGPU texture resolution=]. A value of `1.0` uses the recommended resolution; values less than `1.0` reduce quality for improved performance; values greater than `1.0` increase quality at the cost of performance. The value is clamped to the range [0.2, max({{XRGPUBinding/nativeProjectionScaleFactor}}, 1.0)].
 
