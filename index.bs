@@ -335,7 +335,7 @@ When invoked, the user agent MUST run the following steps:
 
  1. If the `"layers"` [=feature descriptor=] is not enabled for the session, throw a {{NotSupportedError}} {{DOMException}}.
  1. If |layer| was not created by this {{XRGPUBinding}}, throw an {{InvalidStateError}} {{DOMException}}.
- 1. If |frame|'s [=XRFrame's session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
+ 1. If |frame|'s [=XRFrame's session|session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. If |frame| is not an active [=XR animation frame=], throw an {{InvalidStateError}} {{DOMException}}.
  1. Let |subImage| be a new {{XRGPUSubImage}}.
  1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's [=current color texture=].
@@ -353,7 +353,7 @@ The <dfn method for="XRGPUBinding">getViewSubImage(|layer|, |view|)</dfn> method
 When invoked, the user agent MUST run the following steps:
 
  1. If |layer| was not created by this {{XRGPUBinding}}, throw an {{InvalidStateError}} {{DOMException}}.
- 1. If |view|'s [=XRView's session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
+ 1. If |view|'s [=XRView's session|session=] is not the [=XRGPUBinding/session=], throw an {{InvalidStateError}} {{DOMException}}.
  1. Let |subImage| be a new {{XRGPUSubImage}}.
  1. Set |subImage|'s {{XRGPUSubImage/colorTexture}} to the layer's [=current color texture=].
  1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's [=current depth/stencil texture=], or `null` if no depth/stencil format was specified during layer creation.
@@ -411,7 +411,7 @@ Rendering a projection layer during an animation frame:
 
 An {{XRGPUSubImage}} represents a view into a WebGPU-backed composition layer's textures. It provides the {{GPUTexture}}s to render into and a {{GPUTextureViewDescriptor}} that describes which portion of the texture corresponds to the requested view.
 
-Each {{XRCompositionLayer}} created with an {{XRGPUBinding}} has an associated <dfn>current color texture</dfn> and an optional <dfn>current depth/stencil texture</dfn>. These are {{GPUTexture}} objects allocated and managed by the user agent's swap chain for the layer. At the beginning of each [=XR animation frame=], the user agent provides new textures for rendering. The textures from the previous frame are submitted to the compositor and are no longer available for rendering.
+Each {{XRCompositionLayer}} created with an {{XRGPUBinding}} has an associated <dfn>current color texture</dfn> and an optional <dfn>current depth/stencil texture</dfn>. These are {{GPUTexture}} objects allocated and managed by the user agent's swap chain for the layer. At the beginning of each [=XR animation frame=], the user agent provides new textures for rendering. The new textures MUST be cleared to zero before being provided to the application. The textures from the previous frame are submitted to the compositor and are no longer available for rendering.
 
 <script type=idl>
 [Exposed=(Window), SecureContext]
