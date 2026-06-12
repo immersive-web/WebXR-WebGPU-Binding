@@ -375,7 +375,7 @@ When invoked, the user agent MUST run the following steps:
  1. Set |subImage|'s {{XRGPUSubImage/depthStencilTexture}} to the layer's [=current depth-stencil texture=], or `null` if no depth/stencil format was specified during layer creation.
  1. Set |subImage|'s {{XRGPUSubImage/motionVectorTexture}} to the layer's [=current motion vector texture=], or `null` if the [=feature descriptor/space-warp=] [=feature descriptor=] was not enabled when the session was created.
  1. Set |subImage|'s array layer index to the view's index.
- 1. Set the viewport to the full texture dimensions, adjusted by the current viewport scale.
+ 1. Set |subImage|'s viewport to the region of the {{XRGPUSubImage/colorTexture}} corresponding to |view|, adjusted by the current viewport scale.
  1. Return |subImage|.
 
 <div class="example">
@@ -427,6 +427,7 @@ Rendering a projection layer during an animation frame:
 ## XRGPUSubImage ## {#xrgpusubimage-interface}
 
 An {{XRGPUSubImage}} represents a view into a WebGPU-backed composition layer's textures. It provides the {{GPUTexture}}s to render into and a {{GPUTextureViewDescriptor}} that describes which portion of the texture corresponds to the requested view.
+The {{XRSubImage/viewport}} describes the region of the {{XRGPUSubImage/colorTexture}} that corresponds to the requested view. It does not describe the region of the {{XRGPUSubImage/depthStencilTexture}} or {{XRGPUSubImage/motionVectorTexture}}.
 
 Each {{XRCompositionLayer}} created with an {{XRGPUBinding}} has an associated <dfn>current color texture</dfn> and an optional <dfn>current depth-stencil texture</dfn>. Each {{XRProjectionLayer}} created with an {{XRGPUBinding}} has an optional <dfn>current motion vector texture</dfn>. These are {{GPUTexture}} objects allocated and managed by the user agent's swap chain for the layer. At the beginning of each [=XR animation frame=], the user agent provides new textures for rendering. The color and motion vector textures MUST be cleared to zero before being provided to the application. The depth component of depth/stencil textures MUST be cleared to `1.0`, and the stencil component MUST be cleared to `0`. The textures from the previous frame are submitted to the compositor and are no longer available for rendering.
 
@@ -672,9 +673,10 @@ If the [=feature descriptor/space-warp=] [=feature descriptor=] is enabled, the 
 
 When the [=feature descriptor/space-warp=] [=feature descriptor=] is enabled, the experience should render representative depth values into the {{XRGPUSubImage/depthStencilTexture}} for each {{XRProjectionLayer}} it submits.
 The {{XRGPUSubImage/depthStencilTexture}} and {{XRGPUSubImage/motionVectorTexture}} will have the same dimensions, which may be different from the dimensions of the {{XRGPUSubImage/colorTexture}}.
+Authors should render depth/stencil and motion vector information to the full extent of the texture view selected by {{XRGPUSubImage/getViewDescriptor()}}, rather than to the {{XRSubImage/viewport}}.
 
-NOTE: Since the depth/stencil attachment can have different dimensions than the color attachment, it is not intended to be attached to the render pass used to render into the {{XRGPUSubImage/colorTexture}}.
-Authors should render depth/stencil information separately at the depth/stencil attachment dimensions.
+NOTE: Since the depth/stencil and motion vector attachments can have different dimensions than the color attachment, they are not intended to be attached to the render pass used to render into the {{XRGPUSubImage/colorTexture}}.
+Authors should render depth/stencil and motion vector information separately at their attachment dimensions.
 
 The {{XRGPUSubImage/motionVectorTexture}} MUST be in `"rgba16float"` format. The author SHOULD fill in the RG components of this texture with the 2D screen-space motion vector for that area, expressed as a delta in Normalized Device Coordinates between the current frame and the previous frame. The motion vector is computed as `(currentClipPos / currentW) - (prevClipPos / prevW)`, where `currentClipPos` and `prevClipPos` are the clip space positions of the fragment in the current and previous frames, respectively. The red channel corresponds to the delta in X, and the green channel corresponds to the delta in Y. The blue channel MAY contain the delta in Z depth, and the alpha channel is unused.
 
