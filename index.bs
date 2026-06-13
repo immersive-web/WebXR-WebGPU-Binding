@@ -137,7 +137,7 @@ This specification uses the terms [=XR device=], [=XR Compositor=], {{XRSession}
 
 It uses the terms {{XRCompositionLayer}}, {{XRProjectionLayer}}, {{XRQuadLayer}}, {{XRCylinderLayer}}, {{XREquirectLayer}}, {{XRCubeLayer}}, {{XRSubImage}}, and {{XRWebGLBinding}} as defined in the [WebXR Layers API](https://immersive-web.github.io/layers/) specification.
 
-It uses the terms {{GPUDevice}}, {{GPUAdapter}}, {{GPUTexture}}, {{GPUTextureViewDescriptor}}, {{GPUTextureFormat}}, and {{GPUTextureUsageFlags}} as defined in the [WebGPU](https://gpuweb.github.io/gpuweb/) specification.
+It uses the terms {{GPUDevice}}, {{GPUAdapter}}, {{GPUQueue}}, {{GPUTexture}}, {{GPUTextureViewDescriptor}}, {{GPUTextureFormat}}, and {{GPUTextureUsageFlags}} as defined in the [WebGPU](https://gpuweb.github.io/gpuweb/) specification.
 
 ## Application flow ## {#applicationflow}
 
@@ -430,6 +430,8 @@ An {{XRGPUSubImage}} represents a view into a WebGPU-backed composition layer's 
 The {{XRSubImage/viewport}} describes the region of the {{XRGPUSubImage/colorTexture}} that corresponds to the requested view. It does not describe the region of the {{XRGPUSubImage/depthStencilTexture}} or {{XRGPUSubImage/motionVectorTexture}}.
 
 Each {{XRCompositionLayer}} created with an {{XRGPUBinding}} has an associated <dfn>current color texture</dfn> and an optional <dfn>current depth-stencil texture</dfn>. Each {{XRProjectionLayer}} created with an {{XRGPUBinding}} has an optional <dfn>current motion vector texture</dfn>. These are {{GPUTexture}} objects allocated and managed by the user agent's swap chain for the layer. At the beginning of each [=XR animation frame=], the user agent provides new textures for rendering. The color and motion vector textures MUST be cleared to zero before being provided to the application. The depth component of depth/stencil textures MUST be cleared to `1.0`, and the stencil component MUST be cleared to `0`. The textures from the previous frame are submitted to the compositor and are no longer available for rendering.
+
+Before the [=XR Compositor=] consumes a layer's [=current color texture=], [=current depth-stencil texture=], or [=current motion vector texture=] for an {{XRFrame}}, the user agent MUST ensure that all WebGPU work submitted during the processing of that {{XRFrame}} that writes to those textures has completed, or MUST synchronize the [=XR Compositor=] with that work using an equivalent GPU-side dependency. If multiple {{GPUQueue/submit()}} calls write to the same current texture for a layer during a single {{XRFrame}}, this synchronization MUST include the last such submit before that texture is consumed by the [=XR Compositor=].
 
 <script type=idl>
 [Exposed=(Window), SecureContext]
